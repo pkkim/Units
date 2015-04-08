@@ -20,19 +20,6 @@ module Units
 {-| A module providing unit conversion capabilities. Units themselves may be
 defined in other modules.
 
-# Types
-@docs Unit
-
-# Constructors
-@docs unity, baseLength, baseTime, baseMass, baseTemp, baseAmount, baseCurrent,
-baseLumInt
-
-# Unit operators
-@docs mul, scale, inv, per, pow, affineUnit
-
-# Conversion
-@docs convert
-
 Examples:
 
 Converting meters to feet, and vice versa:
@@ -83,6 +70,19 @@ Invalid conversion:
     mile = scale 1609.34 meter
     result = convert 5 mile cubicMeter
         (result == Nothing)
+
+# Types
+@docs Unit
+
+# Constructors
+@docs unity, baseLength, baseTime, baseMass, baseTemp, baseAmount, baseCurrent,
+baseLumInt
+
+# Unit operators
+@docs mul, scale, inv, per, pow, affineUnit
+
+# Conversion
+@docs convert
 -}
 
 import Ratio (..)
