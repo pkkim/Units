@@ -88,9 +88,8 @@ baseLumInt
 import Ratio (..)
 import Ratio
 
-{-| Represents a single unit of a physical quantity, such as square meters,
-moles per gallon, etc. Units must be either linear or affine. -}
-type alias Unit = {
+-- Actual implementation of unit, hidden from user.
+type alias UnitInternal = {
     len : Rational
   , time : Rational
   , mass : Rational
@@ -100,12 +99,12 @@ type alias Unit = {
   , lumInt : Rational
   , prefix : Float
   , zero : Float }
+{-| Represents a single unit of a physical quantity, such as square meters,
+moles per gallon, etc. Units must be either linear or affine. -}
+type Unit = UnitConstructor UnitInternal
 
-{-| Constructor for the unitless quantity of magnitude one. It has the
-property: for any unit x, x `mul` unity == x.
--}
-unity : Unit
-unity = {
+unityInternal : UnitInternal
+unityInternal =  {
     len = fromInt 0
   , time = fromInt 0
   , mass = fromInt 0
@@ -115,34 +114,39 @@ unity = {
   , lumInt = fromInt 0
   , prefix = 1
   , zero = 0 }
+{-| Constructor for the unitless quantity of magnitude one. It has the
+property: for any unit x, x `mul` unity == x.
+-}
+unity : Unit
+unity = UnitConstructor unityInternal
 
 {-| Constructor for the length quantity of magnitude one. -}
 baseLength : Unit
-baseLength = { unity | len <- fromInt 1 }
+baseLength = UnitConstructor { unityInternal | len <- fromInt 1 }
 
 {-| Constructor for the time quantity of magnitude one. -}
 baseTime : Unit
-baseTime = { unity | time <- fromInt 1 }
+baseTime = UnitConstructor { unityInternal | time <- fromInt 1 }
 
 {-| Constructor for the mass quantity of magnitude one. -}
 baseMass : Unit
-baseMass = { unity | mass <- fromInt 1 }
+baseMass = UnitConstructor { unityInternal | mass <- fromInt 1 }
 
 {-| Constructor for the temperature quantity of magnitude one. -}
 baseTemp : Unit
-baseTemp = { unity | temp <- fromInt 1 }
+baseTemp = UnitConstructor { unityInternal | temp <- fromInt 1 }
 
 {-| Constructor for the amount quantity of magnitude one. -}
 baseAmount : Unit
-baseAmount = { unity | amount <- fromInt 1 }
+baseAmount = UnitConstructor { unityInternal | amount <- fromInt 1 }
 
 {-| Constructor for the current quantity of magnitude one. -}
 baseCurrent : Unit
-baseCurrent = { unity | current <- fromInt 1 }
+baseCurrent = UnitConstructor { unityInternal | current <- fromInt 1 }
 
 {-| Constructor for the luminous intensity quantity of magnitude one. -}
 baseLumInt : Unit
-baseLumInt = { unity | lumInt <- fromInt 1 }
+baseLumInt = UnitConstructor { unityInternal | lumInt <- fromInt 1 }
 
 {-| Scales a unit by a factor.
 
@@ -150,7 +154,8 @@ baseLumInt = { unity | lumInt <- fromInt 1 }
     kilometer = scale 1000 meter
 -}
 scale : number -> Unit -> Unit
-scale scalar unit = { unit | prefix <- unit.prefix * scalar }
+scale scalar (UnitConstructor u) =
+    UnitConstructor { u | prefix <- u.prefix * scalar }
 
 {-| Multiplies two units.
 
@@ -159,7 +164,7 @@ scale scalar unit = { unit | prefix <- unit.prefix * scalar }
     weirdEnergyUnit = foot `mul` kilogram
 -}
 mul : Unit -> Unit -> Unit
-mul x y = {
+mul (UnitConstructor x) (UnitConstructor y) = UnitConstructor {
     len = x.len `add` y.len
   , time = x.time `add` y.time
   , mass = x.mass `add` y.mass
@@ -176,15 +181,15 @@ mul x y = {
     hertz = inv second
 -}
 inv : Unit -> Unit
-inv unit =
-  { len = Ratio.negate (unit.len)
-  , time = Ratio.negate (unit.time)
-  , mass = Ratio.negate (unit.mass)
-  , temp = Ratio.negate (unit.temp)
-  , amount = Ratio.negate (unit.amount)
-  , current = Ratio.negate (unit.current)
-  , lumInt = Ratio.negate (unit.lumInt)
-  , prefix = 1 / unit.prefix
+inv (UnitConstructor u) = UnitConstructor
+  { len = Ratio.negate (u.len)
+  , time = Ratio.negate (u.time)
+  , mass = Ratio.negate (u.mass)
+  , temp = Ratio.negate (u.temp)
+  , amount = Ratio.negate (u.amount)
+  , current = Ratio.negate (u.current)
+  , lumInt = Ratio.negate (u.lumInt)
+  , prefix = 1 / u.prefix
   , zero = 0 }
 
 {-| Divides the first argument by the second argument.
@@ -203,16 +208,16 @@ per numerator denominator = numerator `mul` (inv denominator)
     massStDev = pow massVariance (1 `Ratio.over` 2)
 -}
 pow : Unit -> Rational -> Unit
-pow unit power = 
-  { len = unit.len `multiply` power
-  , time = unit.time `multiply` power
-  , mass = unit.mass `multiply` power
-  , temp = unit.temp `multiply` power
-  , amount = unit.amount `multiply` power
-  , current = unit.current `multiply` power
-  , lumInt = unit.lumInt `multiply` power
-  , prefix = unit.prefix ^ Ratio.toFloat power
-  , zero = unit.zero ^ Ratio.toFloat power }
+pow (UnitConstructor u) power = UnitConstructor
+  { len = u.len `multiply` power
+  , time = u.time `multiply` power
+  , mass = u.mass `multiply` power
+  , temp = u.temp `multiply` power
+  , amount = u.amount `multiply` power
+  , current = u.current `multiply` power
+  , lumInt = u.lumInt `multiply` power
+  , prefix = u.prefix ^ Ratio.toFloat power
+  , zero = u.zero ^ Ratio.toFloat power }
 
 {-| Makes unit whose zero is not physical zero. Where X is the second argument,
 the zero of the new unit is X base units above the physical zero.
@@ -222,7 +227,7 @@ the zero of the new unit is X base units above the physical zero.
     fahrenheit = affineUnit 273.15 (scale (5/9) celsius)
 -}
 affineUnit : Float -> Unit -> Unit
-affineUnit newZero unit = { unit | zero <- newZero }
+affineUnit newZero (UnitConstructor u) = UnitConstructor { u | zero <- newZero }
 
 {-| Converts a quantity in one unit to another unit. Returns Nothing if the units are not compatible.
 
@@ -250,9 +255,9 @@ Example of an invalid conversion:
         (result == Nothing)
 -}
 convert : number -> Unit -> Unit -> Maybe Float
-convert fromUnitQuantity fromUnit toUnit =
+convert fromUnitQuantity (UnitConstructor f) (UnitConstructor t) =
     let
-        compatible : Unit -> Unit -> Bool
+        compatible : UnitInternal -> UnitInternal -> Bool
         compatible x y =
             x.len == y.len &&
             x.time == y.time &&
@@ -262,6 +267,6 @@ convert fromUnitQuantity fromUnit toUnit =
             x.current == y.current &&
             x.lumInt == y.lumInt
     in
-        if (compatible fromUnit toUnit) then Just ( ((fromUnitQuantity *
-           (fromUnit.prefix) + fromUnit.zero) - toUnit.zero) / toUnit.prefix)
+        if (compatible f t) then Just ( ((fromUnitQuantity *
+           (f.prefix) + f.zero) - t.zero) / t.prefix)
         else Nothing 
