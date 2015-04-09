@@ -72,7 +72,8 @@ Invalid conversion:
         (result == Nothing)
 
 # Types
-@docs Unit
+The `Unit` type represents a single unit of a physical quantity, such as square
+meters, moles per gallon, etc. Units must be either linear or affine.
 
 # Constructors
 @docs unity, baseLength, baseTime, baseMass, baseTemp, baseAmount, baseCurrent,
